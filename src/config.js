@@ -45,12 +45,10 @@ module.exports = {
   },
 
   user: {
-    jay: process.env.JAY,
     luigi: process.env.LUIGI,
-    paul: process.env.PAUL,
     peril: process.env.PERIL,
     prototype: process.env.PROTOTYPE,
-    ranch: process.env.RANCH,
+
   },
 
   clash: {
