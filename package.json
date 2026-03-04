@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "dev-env": "set NODE_ENV=development&& node --watch src/index.js",
+    "prod-env": "set NODE_ENV=production&& node src/index.js",
     "deploy": "node src/deploy-commands.js",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

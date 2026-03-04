@@ -31,16 +31,28 @@ cp .env.example .env
 | `GUILD_ID` | Dev server ID for instant command updates (leave empty for global) |
 | `COC_API_TOKEN` | Clash of Clans API token |
 
+### Using Multiple Environments
+
+The bot supports switching between **development** and **production** environments:
+
+- **`.env.development`** — Configuration for your development/testing guild
+- **`.env.production`** — Configuration for your production guild
+
+Set up both files with their respective guild IDs and other environment-specific values. The bot will automatically load the correct file based on the `NODE_ENV` environment variable.
+
 ---
 
 ## Running the Bot
 
 ```bash
-# Production
-npm start
+# Development (auto-restarts on file changes, uses .env.development)
+npm run dev-env
 
-# Development (auto-restarts on file changes)
-npm run dev
+# Production (uses .env.production)
+npm run prod-env
+
+# Default (uses .env.development)
+npm start
 ```
 
 ### Registering Slash Commands

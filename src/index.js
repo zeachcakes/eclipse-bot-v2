@@ -1,7 +1,11 @@
-require('dotenv').config();
+const path = require('node:path');
+
+// Load the appropriate .env file based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+require('dotenv').config({ path: path.join(__dirname, '..', envFile) });
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('node:fs');
-const path = require('node:path');
 
 const client = new Client({
   intents: [
