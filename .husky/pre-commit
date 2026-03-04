@@ -1,0 +1,10 @@
+# Run ESLint with autofix on staged JS files
+npx lint-staged
+
+# Run gitleaks secret scan on staged files
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged -v
+else
+  echo "WARNING: gitleaks not installed — skipping secret scan."
+  echo "Install from https://github.com/gitleaks/gitleaks/releases"
+fi
