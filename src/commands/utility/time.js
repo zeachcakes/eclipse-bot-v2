@@ -173,7 +173,7 @@ module.exports = {
         embeds: [
           Embeds.info({
             title: '🕐 Clan Time',
-            description: 'The **Eclipse** clan follows **Eastern Time**.',
+            description: '**Reddit Eclipse** follows **Eastern Time**.',
             color: Embeds.COLORS.time,
             footer: 'Eclipse Bot • Automatically adjusts for EST / EDT',
             fields: [
