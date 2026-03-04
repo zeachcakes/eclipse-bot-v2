@@ -1,1 +1,9 @@
+# Normalize line endings to LF for all text files
+* text=auto eol=lf
+
+# Explicitly set LF for common development files
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
 *.sh text eol=lf
+.gitignore text eol=lf
