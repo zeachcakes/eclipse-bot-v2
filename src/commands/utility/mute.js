@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const { scheduleMute } = require('../../utils/muteScheduler');
+const Embeds = require('../../utils/embeds');
 
 const ALLOWED_ROLE_KEYS = ['leadership', 'co_leader', 'admin'];
 
@@ -142,7 +143,18 @@ module.exports = {
 
     // Confirm to moderator
     await interaction.reply({
-      content: `**${target.user.tag}** has been muted for **${durationLabel}**.`,
+      embeds: [
+        Embeds.info({
+          title: '🔇 Member Muted',
+          color: Embeds.COLORS.mute,
+          fields: [
+            { name: '👤 Member',   value: `<@${target.id}>`, inline: true },
+            { name: '⏱️ Duration', value: durationLabel,     inline: true },
+            { name: '📅 Expires',  value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`, inline: false },
+            { name: '📋 Reason',   value: reason,            inline: false },
+          ],
+        }),
+      ],
       ephemeral: true,
     });
 
@@ -156,19 +168,17 @@ module.exports = {
       if (logChannel) {
         await logChannel.send({
           embeds: [
-            new EmbedBuilder()
-              .setTitle('Member Muted')
-              .setColor(0xFF4500)
-              .addFields(
-                { name: 'User', value: `${target.user.tag} (<@${target.id}>)`, inline: true },
-                { name: 'Moderator', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: true },
-                { name: 'Duration', value: durationLabel, inline: true },
-                { name: 'Expires', value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`, inline: true },
-                { name: 'Reason', value: reason },
-              )
-              .setThumbnail(target.user.displayAvatarURL())
-              .setFooter({ text: `User ID: ${target.id}` })
-              .setTimestamp(),
+            Embeds.modLog({
+              title: '🔇 Member Muted',
+              color: Embeds.COLORS.mute,
+              target,
+              moderator: interaction.member,
+              fields: [
+                { name: '⏱️ Duration', value: durationLabel, inline: true },
+                { name: '📅 Expires',  value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`, inline: true },
+                { name: '📋 Reason',   value: reason },
+              ],
+            }),
           ],
         });
       } else {

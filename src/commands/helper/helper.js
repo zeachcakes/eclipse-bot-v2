@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
 const { getHighestRole } = require('../../utils/checkRole');
+const Embeds = require('../../utils/embeds');
 
 const CLAN_INFO = [
   `**Clan:** ${config.clanName} (\`${config.clanTag}\`)`,
@@ -88,14 +89,16 @@ module.exports = {
 
     const { title, description, fields } = ROLE_CONTENT[role];
 
-    const embed = new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(description)
-      .addFields(fields)
-      .setColor(0xF4A500)
-      .setFooter({ text: `Reddit Eclipse • ${config.clanTag}` })
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({
+      embeds: [
+        Embeds.info({
+          title,
+          description,
+          fields,
+          footer: `Reddit Eclipse • ${config.clanTag}`,
+        }),
+      ],
+      ephemeral: true,
+    });
   },
 };

@@ -1,6 +1,6 @@
-const { EmbedBuilder } = require('discord.js');
 const prisma = require('../lib/prisma');
 const config = require('../config');
+const Embeds = require('./embeds');
 
 async function sendLog(client, embed) {
   const logChannelId = config.channel.leader_notes;
@@ -32,13 +32,12 @@ async function expireMute(client, guild, muteRecord) {
     console.error('[MuteScheduler] Failed to deactivate mute record:', err);
   }
 
-  await sendLog(client, new EmbedBuilder()
-    .setTitle('Member Unmuted (Auto)')
-    .setColor(0x57F287)
-    .setDescription(`<@${muteRecord.userId}> has been automatically unmuted.`)
-    .setFooter({ text: `User ID: ${muteRecord.userId}` })
-    .setTimestamp(),
-  );
+  await sendLog(client, Embeds.autoLog({
+    title: '🔊 Member Unmuted (Auto)',
+    description: `<@${muteRecord.userId}> has been automatically unmuted.`,
+    color: Embeds.COLORS.unmute,
+    userId: muteRecord.userId,
+  }));
 }
 
 /**
