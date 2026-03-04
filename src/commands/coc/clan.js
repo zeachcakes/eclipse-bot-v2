@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const cocApi = require('../../services/cocApi');
 const config = require('../../config');
 const { hasRole } = require('../../utils/checkRole');
+const Embeds = require('../../utils/embeds');
 
 const LEADERSHIP_ROLES = ['co_leader', 'elder'];
 
@@ -31,28 +32,26 @@ module.exports = {
 
     const clan = await cocApi.getClan(config.clanTag);
 
-    const embed = new EmbedBuilder()
-      .setTitle(`${clan.name} (${clan.tag})`)
-      .setThumbnail(clan.badgeUrls?.medium ?? null)
-      .setColor(0xF4A500)
-      .addFields(
-        { name: 'Clan Level', value: `${clan.clanLevel}`, inline: true },
-        { name: 'Members', value: `${clan.members}/50`, inline: true },
-        { name: 'Type', value: clan.type ?? 'N/A', inline: true },
-        { name: 'War League', value: clan.warLeague?.name ?? 'Unranked', inline: true },
-        { name: 'War Wins', value: `${clan.warWins ?? 0}`, inline: true },
-        { name: 'Win Streak', value: `${clan.warWinStreak ?? 0}`, inline: true },
-        { name: 'War Frequency', value: WAR_FREQUENCY[clan.warFrequency] ?? clan.warFrequency ?? 'N/A', inline: true },
-        { name: 'Required Trophies', value: `${clan.requiredTrophies ?? 0}`, inline: true },
-        { name: 'Points', value: `${clan.clanPoints ?? 0}`, inline: true },
-      )
-      .setFooter({ text: `Reddit Eclipse • ${config.clanTag}` })
-      .setTimestamp();
-
-    if (clan.description) {
-      embed.setDescription(clan.description);
-    }
-
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.editReply({
+      embeds: [
+        Embeds.info({
+          title: `${clan.name} (${clan.tag})`,
+          description: clan.description || null,
+          thumbnail: clan.badgeUrls?.medium ?? null,
+          footer: `Reddit Eclipse • ${config.clanTag}`,
+          fields: [
+            { name: '🏰 Clan Level',       value: `${clan.clanLevel}`,                                                    inline: true },
+            { name: '👥 Members',           value: `${clan.members}/50`,                                                   inline: true },
+            { name: '🔓 Type',              value: clan.type ?? 'N/A',                                                     inline: true },
+            { name: '⚔️ War League',        value: clan.warLeague?.name ?? 'Unranked',                                     inline: true },
+            { name: '🏆 War Wins',          value: `${clan.warWins ?? 0}`,                                                 inline: true },
+            { name: '🔥 Win Streak',        value: `${clan.warWinStreak ?? 0}`,                                            inline: true },
+            { name: '📅 War Frequency',     value: WAR_FREQUENCY[clan.warFrequency] ?? clan.warFrequency ?? 'N/A',        inline: true },
+            { name: '🏅 Required Trophies', value: `${clan.requiredTrophies ?? 0}`,                                        inline: true },
+            { name: '⭐ Points',            value: `${clan.clanPoints ?? 0}`,                                              inline: true },
+          ],
+        }),
+      ],
+    });
   },
 };

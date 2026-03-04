@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const fs = require('node:fs');
 const path = require('node:path');
+const Embeds = require('../../utils/embeds');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -11,11 +12,7 @@ module.exports = {
     const commandsPath = path.join(__dirname, '..');
     const categoryFolders = fs.readdirSync(commandsPath);
 
-    const embed = new EmbedBuilder()
-      .setTitle('Eclipse Bot — Commands')
-      .setColor(0xF4A500) // Clash of Clans gold
-      .setFooter({ text: 'Use / to invoke any command' })
-      .setTimestamp();
+    const fields = [];
 
     for (const folder of categoryFolders) {
       const folderPath = path.join(commandsPath, folder);
@@ -32,10 +29,19 @@ module.exports = {
 
       if (lines.length > 0) {
         const categoryName = folder.charAt(0).toUpperCase() + folder.slice(1);
-        embed.addFields({ name: categoryName, value: lines.join('\n') });
+        fields.push({ name: categoryName, value: lines.join('\n') });
       }
     }
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({
+      embeds: [
+        Embeds.info({
+          title: '📖 Eclipse Bot — Commands',
+          footer: 'Use / to invoke any command',
+          fields,
+        }),
+      ],
+      ephemeral: true,
+    });
   },
 };

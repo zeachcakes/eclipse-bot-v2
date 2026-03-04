@@ -1,6 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
+const Embeds = require('../../utils/embeds');
 
 const ALLOWED_ROLE_KEYS = ['leadership', 'co_leader', 'admin'];
 
@@ -62,7 +63,16 @@ module.exports = {
     });
 
     await interaction.reply({
-      content: `**${target.user.tag}** has been unmuted.`,
+      embeds: [
+        Embeds.info({
+          title: '🔊 Member Unmuted',
+          color: Embeds.COLORS.unmute,
+          fields: [
+            { name: '👤 Member', value: `<@${target.id}>`, inline: true },
+            { name: '📋 Reason', value: reason,            inline: true },
+          ],
+        }),
+      ],
       ephemeral: true,
     });
 
@@ -76,17 +86,15 @@ module.exports = {
       if (logChannel) {
         await logChannel.send({
           embeds: [
-            new EmbedBuilder()
-              .setTitle('Member Unmuted')
-              .setColor(0x57F287)
-              .addFields(
-                { name: 'User', value: `${target.user.tag} (<@${target.id}>)`, inline: true },
-                { name: 'Moderator', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: true },
-                { name: 'Reason', value: reason },
-              )
-              .setThumbnail(target.user.displayAvatarURL())
-              .setFooter({ text: `User ID: ${target.id}` })
-              .setTimestamp(),
+            Embeds.modLog({
+              title: '🔊 Member Unmuted',
+              color: Embeds.COLORS.unmute,
+              target,
+              moderator: interaction.member,
+              fields: [
+                { name: '📋 Reason', value: reason },
+              ],
+            }),
           ],
         });
       } else {
