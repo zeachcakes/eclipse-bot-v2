@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const config = require('../../config');
+const prisma = require('../../lib/prisma');
+const { scheduleMute } = require('../../utils/muteScheduler');
 
 const ALLOWED_ROLE_KEYS = ['leadership', 'co_leader', 'admin'];
 
@@ -123,8 +125,20 @@ module.exports = {
       });
     }
 
-    const unmuteAt = new Date(Date.now() + durationMs);
+    const expiresAt = new Date(Date.now() + durationMs);
     const durationLabel = formatDuration(durationMs);
+
+    // Persist mute record and schedule automatic unmute
+    const muteRecord = await prisma.mute.create({
+      data: {
+        userId: target.id,
+        guildId: interaction.guild.id,
+        moderatorId: interaction.user.id,
+        reason,
+        expiresAt,
+      },
+    });
+    scheduleMute(interaction.client, interaction.guild, muteRecord);
 
     // Confirm to moderator
     await interaction.reply({
@@ -149,7 +163,7 @@ module.exports = {
                 { name: 'User', value: `${target.user.tag} (<@${target.id}>)`, inline: true },
                 { name: 'Moderator', value: `${interaction.user.tag} (<@${interaction.user.id}>)`, inline: true },
                 { name: 'Duration', value: durationLabel, inline: true },
-                { name: 'Expires', value: `<t:${Math.floor(unmuteAt.getTime() / 1000)}:F>`, inline: true },
+                { name: 'Expires', value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`, inline: true },
                 { name: 'Reason', value: reason },
               )
               .setThumbnail(target.user.displayAvatarURL())
@@ -163,37 +177,5 @@ module.exports = {
     } catch (err) {
       console.error('[Mute] Failed to send log:', err);
     }
-
-    // Schedule automatic unmute
-    setTimeout(async () => {
-      try {
-        const refreshed = await interaction.guild.members.fetch(target.id);
-        if (refreshed.roles.cache.has(mutedRoleId)) {
-          await refreshed.roles.remove(mutedRoleId, 'Mute duration expired');
-
-          try {
-            const logChannel = logChannelId
-              ? await interaction.client.channels.fetch(logChannelId)
-              : null;
-            if (logChannel) {
-              await logChannel.send({
-                embeds: [
-                  new EmbedBuilder()
-                    .setTitle('Member Unmuted (Auto)')
-                    .setColor(0x57F287)
-                    .setDescription(`<@${target.id}> has been automatically unmuted.`)
-                    .setFooter({ text: `User ID: ${target.id}` })
-                    .setTimestamp(),
-                ],
-              });
-            }
-          } catch (logErr) {
-            console.error('[Mute] Failed to send auto-unmute log:', logErr);
-          }
-        }
-      } catch (err) {
-        console.error(`[Mute] Failed to auto-unmute ${target.id}:`, err);
-      }
-    }, durationMs);
   },
 };

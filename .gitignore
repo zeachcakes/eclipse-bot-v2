@@ -1,4 +1,20 @@
 node_modules/
+
+# Environment files
 .env
 .env.development
 .env.production
+
+# Prisma generated client (regenerated via `prisma generate`)
+node_modules/.prisma/
+
+# Prisma dev database (only relevant if using SQLite)
+*.db
+*.db-journal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude settings
+.claude/

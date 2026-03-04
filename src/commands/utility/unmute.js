@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const config = require('../../config');
+const prisma = require('../../lib/prisma');
 
 const ALLOWED_ROLE_KEYS = ['leadership', 'co_leader', 'admin'];
 
@@ -53,6 +54,12 @@ module.exports = {
         ephemeral: true,
       });
     }
+
+    // Deactivate any active DB mute records for this user
+    await prisma.mute.updateMany({
+      where: { userId: target.id, guildId: interaction.guild.id, active: true },
+      data: { active: false },
+    });
 
     await interaction.reply({
       content: `**${target.user.tag}** has been unmuted.`,

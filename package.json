@@ -9,19 +9,27 @@
     "dev-env": "set NODE_ENV=development&& node --watch src/index.js",
     "prod-env": "set NODE_ENV=production&& node src/index.js",
     "deploy": "node src/deploy-commands.js",
+    "db:migrate": "npx prisma migrate dev",
+    "db:push": "npx prisma db push",
+    "db:studio": "npx prisma studio",
+    "db:generate": "npx prisma generate",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "prepare": "husky"
+    "prepare": "husky && npx prisma generate"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.4.2",
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "pg": "^8.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
     "eslint": "^9.20.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.4.3"
+    "lint-staged": "^15.4.3",
+    "prisma": "^7.4.2"
   },
   "lint-staged": {
     "*.js": "eslint --fix"
