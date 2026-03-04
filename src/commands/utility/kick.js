@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const config = require('../../config');
+const prisma = require('../../lib/prisma');
 
 // Roles that may use this command
 const ALLOWED_ROLE_KEYS = ['admin', 'co_leader'];
@@ -8,9 +9,6 @@ const ALLOWED_ROLE_KEYS = ['admin', 'co_leader'];
 const PROTECTED_ROLE_KEYS = ['admin', 'leadership', 'co_leader'];
 
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-
-// Map<userId, lastKickTimestamp>
-const cooldowns = new Map();
 
 function hasRole(member, ...keys) {
   return keys.some(key => config.role[key] && member.roles.cache.has(config.role[key]));
@@ -44,9 +42,11 @@ module.exports = {
 
     // Cooldown check (co-leaders only)
     if (!callerIsAdmin) {
-      const lastKick = cooldowns.get(interaction.user.id);
-      if (lastKick) {
-        const remaining = COOLDOWN_MS - (Date.now() - lastKick);
+      const cooldown = await prisma.kickCooldown.findUnique({
+        where: { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+      });
+      if (cooldown) {
+        const remaining = COOLDOWN_MS - (Date.now() - cooldown.lastKickAt.getTime());
         if (remaining > 0) {
           const minutes = Math.ceil(remaining / 60_000);
           return interaction.reply({
@@ -95,9 +95,22 @@ module.exports = {
       });
     }
 
-    // Set cooldown for co-leaders
+    // Persist kick log and update cooldown for co-leaders
+    await prisma.kickLog.create({
+      data: {
+        userId: target.id,
+        guildId: interaction.guild.id,
+        moderatorId: interaction.user.id,
+        reason,
+      },
+    });
+
     if (!callerIsAdmin) {
-      cooldowns.set(interaction.user.id, Date.now());
+      await prisma.kickCooldown.upsert({
+        where: { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+        update: { lastKickAt: new Date() },
+        create: { userId: interaction.user.id, guildId: interaction.guild.id, lastKickAt: new Date() },
+      });
     }
 
     await interaction.reply({

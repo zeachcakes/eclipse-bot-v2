@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Mute {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String
+  moderatorId String
+  reason      String
+  expiresAt   DateTime
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, guildId])
+  @@index([active, expiresAt])
+}
+
+model KickLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String
+  moderatorId String
+  reason      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, guildId])
+}
+
+model KickCooldown {
+  userId     String
+  guildId    String
+  lastKickAt DateTime
+
+  @@id([userId, guildId])
+}
+
+model WarnLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String
+  moderatorId String
+  reason      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, guildId])
+}
