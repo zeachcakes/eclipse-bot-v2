@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const { scheduleMute } = require('../../utils/muteScheduler');
@@ -68,7 +68,7 @@ module.exports = {
     if (!isAuthorized(interaction.member)) {
       return interaction.reply({
         content: 'You do not have permission to use this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -78,11 +78,11 @@ module.exports = {
 
     // Validate target
     if (!target) {
-      return interaction.reply({ content: 'That user could not be found in this server.', ephemeral: true });
+      return interaction.reply({ content: 'That user could not be found in this server.', flags: MessageFlags.Ephemeral });
     }
 
     if (target.id === interaction.user.id) {
-      return interaction.reply({ content: 'You cannot mute yourself.', ephemeral: true });
+      return interaction.reply({ content: 'You cannot mute yourself.', flags: MessageFlags.Ephemeral });
     }
 
     // Validate duration
@@ -90,20 +90,20 @@ module.exports = {
     if (!durationMs) {
       return interaction.reply({
         content: 'Invalid duration format. Use `10m`, `2h`, or `1d`.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     // Check muted role is configured
     const mutedRoleId = config.role.muted;
     if (!mutedRoleId) {
-      return interaction.reply({ content: 'Muted role is not configured.', ephemeral: true });
+      return interaction.reply({ content: 'Muted role is not configured.', flags: MessageFlags.Ephemeral });
     }
 
     // Pre-flight: bot must have Manage Roles
     const botMember = interaction.guild.members.me;
     if (!botMember.permissions.has('ManageRoles')) {
-      return interaction.reply({ content: 'I need the **Manage Roles** permission to mute members.', ephemeral: true });
+      return interaction.reply({ content: 'I need the **Manage Roles** permission to mute members.', flags: MessageFlags.Ephemeral });
     }
 
     // Pre-flight: muted role must be below the bot's highest role
@@ -111,7 +111,7 @@ module.exports = {
     if (mutedRole && botMember.roles.highest.position <= mutedRole.position) {
       return interaction.reply({
         content: 'My highest role must be positioned **above** the Muted role in Server Settings → Roles.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -122,7 +122,7 @@ module.exports = {
       console.error('[Mute] Failed to apply muted role:', err);
       return interaction.reply({
         content: 'Failed to apply the muted role. Check my permissions and role hierarchy.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -155,7 +155,7 @@ module.exports = {
           ],
         }),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
     // Log to leader notes channel

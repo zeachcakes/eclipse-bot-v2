@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const Embeds = require('../../utils/embeds');
 
@@ -119,7 +119,7 @@ module.exports = {
     const message = await interaction.reply({
       embeds:     [buildOverviewEmbed(pages)],
       components: buildCategoryRows(pages),
-      ephemeral:  true,
+      flags: MessageFlags.Ephemeral,
       fetchReply: true,
     });
 

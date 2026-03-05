@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
@@ -26,7 +26,7 @@ module.exports = {
     if (!isAuthorized(interaction.member)) {
       return interaction.reply({
         content: 'You do not have permission to use this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -34,16 +34,16 @@ module.exports = {
     const reason = interaction.options.getString('reason') ?? 'No reason provided.';
 
     if (!target) {
-      return interaction.reply({ content: 'That user could not be found in this server.', ephemeral: true });
+      return interaction.reply({ content: 'That user could not be found in this server.', flags: MessageFlags.Ephemeral });
     }
 
     const mutedRoleId = config.role.muted;
     if (!mutedRoleId) {
-      return interaction.reply({ content: 'Muted role is not configured.', ephemeral: true });
+      return interaction.reply({ content: 'Muted role is not configured.', flags: MessageFlags.Ephemeral });
     }
 
     if (!target.roles.cache.has(mutedRoleId)) {
-      return interaction.reply({ content: 'That member is not muted.', ephemeral: true });
+      return interaction.reply({ content: 'That member is not muted.', flags: MessageFlags.Ephemeral });
     }
 
     try {
@@ -52,7 +52,7 @@ module.exports = {
       console.error('[Unmute] Failed to remove muted role:', err);
       return interaction.reply({
         content: 'Failed to remove the muted role. Check my permissions and role hierarchy.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -73,7 +73,7 @@ module.exports = {
           ],
         }),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
     // Log to leader notes channel

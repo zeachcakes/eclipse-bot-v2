@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const cocApi = require('../../services/cocApi');
 const config = require('../../config');
 const { hasRole } = require('../../utils/checkRole');
@@ -24,11 +24,11 @@ module.exports = {
     if (!hasRole(interaction.member, ...LEADERSHIP_ROLES)) {
       return interaction.reply({
         content: 'This command is restricted to **Elders** and **Co-Leaders**.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const clan = await cocApi.getClan(config.clanTag);
 

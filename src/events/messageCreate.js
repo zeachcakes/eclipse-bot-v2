@@ -30,7 +30,7 @@ async function getOrCreateRankRole(guild, rank, effectiveName) {
   if (!role) {
     role = await guild.roles.create({
       name:   effectiveName,
-      color:  rank.color,
+      colors: rank.color,
       reason: 'Eclipse Bot — rank role auto-created',
     });
   }

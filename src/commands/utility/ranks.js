@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const { RANKS } = require('../../config/ranks');
@@ -52,7 +52,7 @@ module.exports = {
     if (!isAdmin(interaction.member)) {
       return interaction.reply({
         content: 'You need the Admin or Leadership role to manage rank names.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -69,7 +69,7 @@ module.exports = {
 
       return interaction.reply({
         content: `Rank **${level}** renamed to **${name}** for this server.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -81,7 +81,7 @@ module.exports = {
       const defaultName = RANKS.find(r => r.level === level)?.name;
       return interaction.reply({
         content: `Rank **${level}** reset to default: **${defaultName}**.`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
