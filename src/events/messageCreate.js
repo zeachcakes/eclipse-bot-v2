@@ -3,6 +3,7 @@ const prisma = require('../lib/prisma');
 const Embeds = require('../utils/embeds');
 const { RANKS } = require('../config/ranks');
 const { getRankForXp, getNextRank, getAllEffectiveRanks } = require('../utils/rankUtils');
+const { getUserFlair } = require('../utils/flairUtils');
 
 const XP_PER_MESSAGE = 20;
 
@@ -56,8 +57,11 @@ module.exports = {
     const currentLevel = record.rankLevel;
     const newXp        = record.xp;
 
-    // Fetch effective names once — reused for both Stardust assignment and rank-up
-    const effectiveRanks = await getAllEffectiveRanks(guild.id);
+    // Fetch effective names and flair once — reused for both Stardust assignment and rank-up
+    const [effectiveRanks, flair] = await Promise.all([
+      getAllEffectiveRanks(guild.id),
+      getUserFlair(author.id, guild.id),
+    ]);
 
     const member = guild.members.cache.get(author.id)
       ?? await guild.members.fetch(author.id).catch(() => null);
@@ -81,7 +85,7 @@ module.exports = {
         embeds: [
           Embeds.info({
             title:       '🌌 Rank Up!',
-            description: `Welcome to the ranks, <@${author.id}>!`,
+            description: `Welcome to the ranks, <@${author.id}>${flair ? ` ${flair}` : ''}!`,
             color:       stardustDef.color,
             thumbnail:   author.displayAvatarURL(),
             footer:      'Eclipse Bot • Ranking System',
@@ -136,7 +140,7 @@ module.exports = {
       embeds: [
         Embeds.info({
           title:       '🌌 Rank Up!',
-          description: `Congratulations <@${author.id}>!`,
+          description: `Congratulations <@${author.id}>${flair ? ` ${flair}` : ''}!`,
           color:       newRank.color,
           thumbnail:   author.displayAvatarURL(),
           footer:      'Eclipse Bot • Ranking System',
