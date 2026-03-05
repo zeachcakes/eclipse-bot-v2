@@ -73,7 +73,7 @@ module.exports = {
     }
 
     const target = interaction.options.getMember('user');
-    const durationInput = interaction.options.getString('duration');
+    const durationInput = interaction.options.getString('duration') ?? '30m';
     const reason = interaction.options.getString('reason') ?? 'No reason provided.';
 
     // Validate target
