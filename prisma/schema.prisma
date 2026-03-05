@@ -85,3 +85,19 @@ model GuildFlairPool {
 
   @@id([guildId, emoji])
 }
+
+model GuildSetting {
+  guildId    String  @id
+  banGifMode Boolean @default(true)
+}
+
+model BanLog {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  guildId     String
+  moderatorId String
+  reason      String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, guildId])
+}

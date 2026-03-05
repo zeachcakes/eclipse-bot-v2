@@ -5,6 +5,7 @@ const COLORS = {
   mute:   0xFFA500, // Orange
   unmute: 0x57F287, // Green
   kick:   0xED4245, // Red
+  ban:    0x8B0000, // Dark red
   time:   0x5865F2, // Blurple
 };
 
