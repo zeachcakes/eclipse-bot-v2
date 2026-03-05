@@ -49,3 +49,23 @@ model WarnLog {
 
   @@index([userId, guildId])
 }
+
+model UserRank {
+  userId       String
+  guildId      String
+  messageCount Int      @default(0)
+  xp           Int      @default(0)
+  rankLevel    Int      @default(1)
+  updatedAt    DateTime @updatedAt
+
+  @@id([userId, guildId])
+  @@index([guildId, xp(sort: Desc)])
+}
+
+model GuildRankConfig {
+  guildId   String
+  rankLevel Int
+  name      String
+
+  @@id([guildId, rankLevel])
+}

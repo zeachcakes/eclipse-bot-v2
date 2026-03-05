@@ -28,6 +28,15 @@ const ALL_CATEGORIES = [
     ],
   },
   {
+    id:   'ranks',
+    name: '🌌 Ranks',
+    tier: 'public',
+    commands: [
+      { name: '/rank',        description: "View your rank or another member's rank" },
+      { name: '/leaderboard', description: 'View the top 10 members by message count' },
+    ],
+  },
+  {
     id:   'clan',
     name: '🏰 Clan',
     tier: 'clan',
