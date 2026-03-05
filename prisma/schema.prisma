@@ -69,3 +69,19 @@ model GuildRankConfig {
 
   @@id([guildId, rankLevel])
 }
+
+model UserFlair {
+  userId  String
+  guildId String
+  flair   String
+
+  @@id([userId, guildId])
+}
+
+model GuildFlairPool {
+  guildId String
+  emoji   String
+  label   String?
+
+  @@id([guildId, emoji])
+}

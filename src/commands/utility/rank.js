@@ -2,6 +2,7 @@ const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
 const { getRankForXp, getNextRank, getAllEffectiveRanks, buildProgressBar } = require('../../utils/rankUtils');
+const { getUserFlair } = require('../../utils/flairUtils');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -15,11 +16,12 @@ module.exports = {
     const target = interaction.options.getMember('user') ?? interaction.member;
     const { guild } = interaction;
 
-    const [record, effectiveRanks] = await Promise.all([
+    const [record, effectiveRanks, flair] = await Promise.all([
       prisma.userRank.findUnique({
         where: { userId_guildId: { userId: target.id, guildId: guild.id } },
       }),
       getAllEffectiveRanks(guild.id),
+      getUserFlair(target.id, guild.id),
     ]);
 
     const xp          = record?.xp ?? 0;
@@ -45,7 +47,7 @@ module.exports = {
     await interaction.reply({
       embeds: [
         Embeds.info({
-          title:     `🌌 ${target.displayName}'s Rank`,
+          title:     `🌌 ${target.displayName}${flair ? ` ${flair}` : ''}'s Rank`,
           color:     currentRank.color,
           thumbnail: target.user.displayAvatarURL(),
           footer:    'Eclipse Bot • Ranking System',
