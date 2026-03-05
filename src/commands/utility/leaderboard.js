@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
 const { getRankForXp, getAllEffectiveRanks } = require('../../utils/rankUtils');
@@ -9,7 +9,7 @@ module.exports = {
     .setDescription('View the top 10 members by message count'),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const { guild } = interaction;
 

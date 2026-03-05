@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
 const { getRankForXp, getNextRank, getAllEffectiveRanks, buildProgressBar } = require('../../utils/rankUtils');
@@ -52,7 +52,7 @@ module.exports = {
           fields,
         }),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

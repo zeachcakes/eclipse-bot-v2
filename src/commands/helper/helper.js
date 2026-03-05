@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const { getHighestRole } = require('../../utils/checkRole');
 const Embeds = require('../../utils/embeds');
@@ -83,7 +83,7 @@ module.exports = {
     if (!role) {
       return interaction.reply({
         content: 'You need a clan role (Eclipse, Elder, or Co-Leader) to use this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -98,7 +98,7 @@ module.exports = {
           footer: `Reddit Eclipse • ${config.clanTag}`,
         }),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

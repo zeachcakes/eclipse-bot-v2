@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const Embeds = require('../../utils/embeds');
 
 const CLAN_TIMEZONE = 'America/New_York';
@@ -195,7 +195,7 @@ module.exports = {
       if (!parsed) {
         return interaction.reply({
           content: 'Invalid time format. Use `3:30 PM`, `11:00am`, or `15:30`.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -203,7 +203,7 @@ module.exports = {
       if (!fromTz) {
         return interaction.reply({
           content: `Unrecognised timezone: \`${fromInput}\`. Try \`ET\`, \`PT\`, \`UTC\`, or an IANA name like \`America/New_York\`.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -211,7 +211,7 @@ module.exports = {
       if (!toTz) {
         return interaction.reply({
           content: `Unrecognised timezone: \`${toInput}\`. Try \`ET\`, \`PT\`, \`UTC\`, or an IANA name like \`America/New_York\`.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 

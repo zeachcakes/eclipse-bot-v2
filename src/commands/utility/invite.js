@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,7 +8,7 @@ module.exports = {
   async execute(interaction) {
     await interaction.reply({
       content: 'Join **Reddit Eclipse**: https://discord.gg/u9jkT8U3hT',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

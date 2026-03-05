@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
@@ -35,7 +35,7 @@ module.exports = {
     if (!hasRole(interaction.member, ...ALLOWED_ROLE_KEYS)) {
       return interaction.reply({
         content: 'You do not have permission to use this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -52,7 +52,7 @@ module.exports = {
           const minutes = Math.ceil(remaining / 60_000);
           return interaction.reply({
             content: `You are on cooldown. You can kick again in **${minutes} minute${minutes !== 1 ? 's' : ''}**.`,
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -62,18 +62,18 @@ module.exports = {
     const reason = interaction.options.getString('reason') ?? 'No reason provided.';
 
     if (!target) {
-      return interaction.reply({ content: 'That user could not be found in this server.', ephemeral: true });
+      return interaction.reply({ content: 'That user could not be found in this server.', flags: MessageFlags.Ephemeral });
     }
 
     if (target.id === interaction.user.id) {
-      return interaction.reply({ content: 'You cannot kick yourself.', ephemeral: true });
+      return interaction.reply({ content: 'You cannot kick yourself.', flags: MessageFlags.Ephemeral });
     }
 
     // Protected role check
     if (hasRole(target, ...PROTECTED_ROLE_KEYS)) {
       return interaction.reply({
         content: 'That member holds a leadership role and cannot be kicked with this command.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -81,7 +81,7 @@ module.exports = {
     if (!target.kickable) {
       return interaction.reply({
         content: 'I cannot kick that member. Check my role position and permissions.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -92,7 +92,7 @@ module.exports = {
       console.error('[Kick] Failed to kick member:', err);
       return interaction.reply({
         content: 'Failed to kick that member. Check my permissions.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -125,7 +125,7 @@ module.exports = {
           ],
         }),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
 
     // Log to leader notes channel
