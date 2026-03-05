@@ -4,6 +4,9 @@ const Embeds = require('../utils/embeds');
 const { RANKS } = require('../config/ranks');
 const { getRankForXp, getNextRank, getAllEffectiveRanks } = require('../utils/rankUtils');
 const { getUserFlair } = require('../utils/flairUtils');
+const { parseArgs, tokenize, buildUsage } = require('../utils/prefixParser');
+const { CommandContext } = require('../utils/CommandContext');
+const config = require('../config');
 
 const XP_PER_MESSAGE = 20;
 
@@ -44,6 +47,42 @@ module.exports = {
   async execute(message) {
     if (message.author.bot) return;
     if (!message.guild)     return;
+
+    // ── Prefix command handling ────────────────────────────────────────────────
+    if (message.content.startsWith(config.prefix)) {
+      const args        = tokenize(message.content.slice(config.prefix.length));
+      if (args.length === 0) return;
+
+      const commandName = args.shift().toLowerCase();
+      const command     = message.client.commands.get(commandName);
+
+      if (!command) return; // Unknown command — silently ignore
+
+      // If the command uses subcommands and none was provided, show usage
+      const schema     = command.data.toJSON();
+      const topOptions = schema.options ?? [];
+      const hasSubcmds = topOptions.some(o => o.type === 1 /* SUB_COMMAND */ || o.type === 2 /* SUB_COMMAND_GROUP */);
+
+      try {
+        const optionsResolver = await parseArgs(message, command.data, args);
+
+        if (hasSubcmds && !optionsResolver.getSubcommand()) {
+          await message.channel.send({
+            content: `**Usage:**\n${buildUsage(config.prefix, schema)}`,
+          });
+          return;
+        }
+
+        const ctx = new CommandContext(message, commandName, optionsResolver);
+        await command.execute(ctx);
+      } catch (error) {
+        console.error(`[Error] Prefix command "${commandName}" failed:`, error);
+        await message.channel.send({
+          content: 'Something went wrong while executing that command.',
+        });
+      }
+      return; // Do not award XP for command invocations
+    }
 
     const { author, guild } = message;
 
