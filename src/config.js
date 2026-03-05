@@ -3,6 +3,8 @@ require('dotenv').config();
 module.exports = {
   clanName: 'Reddit Eclipse',
   clanTag: '#9RVVPG2J',
+  clan2Name: 'The Hidden Sun',
+  clanTag2: '#LYPUC82Y',
   rules: 'https://www.reddit.com/r/RedditEclipse/wiki/clan_rules',
   password: 'https://www.reddit.com/r/redditclansystem/wiki/official_reddit_clan_system',
   subreddit: 'https://www.reddit.com/r/RedditEclipse/',
@@ -34,6 +36,7 @@ module.exports = {
     co_leader: process.env.CO_LEADER_ROLE,
     elder: process.env.ELDER_ROLE,
     eclipse: process.env.ECLIPSE_ROLE,
+    hidden_sun: process.env.HIDDEN_SUN_ROLE,
     friends: process.env.FRIENDS_ROLE,
     inwar: process.env.INWAR_ROLE,
     leadership: process.env.LEADERSHIP_ROLE,

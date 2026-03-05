@@ -21,6 +21,14 @@ class CocApiService {
   getClan(tag) {
     return this.#get(`/clans/${encodeURIComponent(tag)}`);
   }
+
+  getPlayer(tag) {
+    return this.#get(`/players/${encodeURIComponent(tag)}`);
+  }
+
+  getClanMembers(tag) {
+    return this.#get(`/clans/${encodeURIComponent(tag)}/members`);
+  }
 }
 
 module.exports = new CocApiService(process.env.COC_API_TOKEN);

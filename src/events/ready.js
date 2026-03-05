@@ -1,6 +1,7 @@
 const { Events, ActivityType } = require('discord.js');
 const prisma = require('../lib/prisma');
 const { scheduleMute } = require('../utils/muteScheduler');
+const { startDonationScheduler } = require('../services/donationScheduler');
 
 module.exports = {
   name: Events.ClientReady,
@@ -10,6 +11,9 @@ module.exports = {
     console.log(`[Ready] Logged in as ${client.user.tag}`);
     console.log(`[Ready] Serving ${client.guilds.cache.size} guild(s)`);
     client.user.setActivity('Watching the Eclipse', { type: ActivityType.Custom });
+
+    // Start donation season-rollover scheduler
+    startDonationScheduler();
 
     // Restore active mutes that survived a bot restart
     try {

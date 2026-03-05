@@ -3,6 +3,7 @@ const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
 const { getRankForXp, getAllEffectiveRanks } = require('../../utils/rankUtils');
 const { getFlairsForUsers } = require('../../utils/flairUtils');
+const { formatLeaderboardRow, formatRequesterLine } = require('../../utils/leaderboardUtils');
 
 function formatDate(date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
@@ -13,6 +14,7 @@ function formatXp(n) {
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
   return String(n);
 }
+
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -47,10 +49,7 @@ module.exports = {
     const sort  = interaction.options.getString('sort')   ?? 'xp';
     const count = interaction.options.getInteger('count') ?? 10;
 
-    const now     = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
-    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
-    const reqLine = `Requested by ${interaction.member.displayName} on ${dateStr} at ${timeStr} EST`;
+    const reqLine = formatRequesterLine(interaction.member);
 
     // ── XP leaderboard ────────────────────────────────────────────────────────
     if (sort === 'xp') {
@@ -75,22 +74,13 @@ module.exports = {
       // Rank column width based on ALL possible rank names for consistent alignment
       const maxRankLen = Math.max(...effectiveRanks.map(r => `(${r.effectiveName})`.length));
 
-      const rows = topRecords.map((record, i) => {
+      const lines = topRecords.map((record, i) => {
         const rank      = getRankForXp(record.xp);
         const effective = effectiveRanks.find(r => r.level === rank.level);
-        return {
-          pos:      String(i + 1).padStart(2),
-          xpStr:    formatXp(record.xp).padStart(6),
-          rankPart: `(${effective.effectiveName})`.padEnd(maxRankLen),
-          baseName: members[i]?.displayName ?? 'Unknown User',
-          flair:    flairs.get(record.userId),
-        };
-      });
-
-      const lines = rows.map(r => {
-        const stats = `\`${r.pos}  ${r.xpStr} xp  ${r.rankPart} |\``;
-        const name  = r.flair ? `${r.flair} ${r.baseName}` : r.baseName;
-        return `${stats}  ${name}`;
+        const statPart  = `${formatXp(record.xp).padStart(6)} xp  ${`(${effective.effectiveName})`.padEnd(maxRankLen)}`;
+        const baseName  = members[i]?.displayName ?? 'Unknown User';
+        const flair     = flairs.get(record.userId);
+        return formatLeaderboardRow(i + 1, statPart, baseName, flair);
       });
 
       return interaction.editReply({
@@ -118,13 +108,10 @@ module.exports = {
 
     const lines = top.map((m, i) => {
       const flair    = flairs.get(m.id);
-      const baseName = m.displayName;
-      const name     = flair ? `${flair} ${baseName}` : baseName;
       const date     = sort === 'account_age'
         ? formatDate(m.user.createdAt)
         : formatDate(m.joinedAt ?? new Date(0));
-
-      return `**${i + 1}.** ${name} — ${date}`;
+      return formatLeaderboardRow(i + 1, date, m.displayName, flair);
     });
 
     const title = sort === 'account_age'

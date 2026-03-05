@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Mute {
@@ -101,4 +100,25 @@ model BanLog {
   createdAt   DateTime @default(now())
 
   @@index([userId, guildId])
+}
+
+model PlayerLink {
+  userId    String
+  guildId   String
+  playerTag String
+  createdAt DateTime @default(now())
+
+  @@id([userId, guildId])
+  @@index([playerTag])
+}
+
+model DonationSeasonSnapshot {
+  playerTag           String
+  seasonKey           String
+  baselineAchievement Int
+  finalDonations      Int?
+  createdAt           DateTime @default(now())
+
+  @@id([playerTag, seasonKey])
+  @@index([seasonKey])
 }

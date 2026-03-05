@@ -49,7 +49,8 @@ Both `.env.development` and `.env.production` are required. Neither is committed
 | `ADMIN_ROLE` | Discord role ID for admins |
 | `CO_LEADER_ROLE` | Discord role ID for co-leaders |
 | `ELDER_ROLE` | Discord role ID for elders |
-| `ECLIPSE_ROLE` | Discord role ID for Eclipse members |
+| `ECLIPSE_ROLE` | Discord role ID for Reddit Eclipse members |
+| `HIDDEN_SUN_ROLE` | Discord role ID for The Hidden Sun members |
 | `LEADERSHIP_ROLE` | Discord role ID for leadership |
 | `MUTED_ROLE` | Discord role ID assigned when a member is muted |
 | `LEADERNOTES` | Channel ID where mod actions are logged |
@@ -103,6 +104,12 @@ npm run db:generate
 | `KickLog` | Full kick history |
 | `KickCooldown` | Tracks co-leader kick cooldowns across restarts |
 | `WarnLog` | Member warnings |
+| `PlayerLink` | Maps a Discord user to a CoC player tag (one per user per guild) |
+| `DonationSeasonSnapshot` | Stores the "Friend in Need" baseline per player per season; `finalDonations` is filled in at season end |
+| `UserRank` | XP and rank level per user per guild |
+| `UserFlair` / `GuildFlairPool` | Per-user display flairs and the server flair pool |
+| `GuildSetting` | Per-guild settings (e.g. ban gif mode) |
+| `BanLog` | Ban audit log |
 
 ---
 
@@ -132,9 +139,25 @@ Every command is available as both a slash command (`/`) and a prefix command (`
 | Slash | Prefix | Who can use | Description |
 |---|---|---|---|
 | `/clan` | `~clan` | Elder, Co-Leader | Fetch current clan data from the CoC API |
+| `/link <player_tag>` | `~link <player_tag>` | Eclipse / Hidden Sun members | Link your CoC account to Discord |
+| `/unlink` | `~unlink` | Eclipse / Hidden Sun members | Unlink your CoC account (history preserved) |
+| `/donations` | `~donations` | Eclipse / Hidden Sun members | Top 10 donation leaderboard for the current season |
+| `/donations target:<user\|#tag>` | `~donations <@user\|#tag\|userId>` | Eclipse / Hidden Sun members | Donation stats for a specific player |
+| `/donations count:20` | — | Eclipse / Hidden Sun members | Show top 20 instead of top 10 |
 | `/helper` | `~helper` | Eclipse members | Role-based guide for clan members |
 | `/time now` | `~time now` | Everyone | Show the current clan time (Eastern) |
 | `/time convert <time> <from> <to>` | `~time convert <time> <from> <to>` | Everyone | Convert a time between timezones |
+
+#### How donation tracking works
+
+Donations are tracked using the **Friend in Need** achievement, which is a cumulative lifetime counter that persists across clan hops — unlike the in-game donation counter which resets whenever a member leaves a clan.
+
+1. A member runs `/link #PLAYERTAG` once. The bot verifies they are in **Reddit Eclipse** (`#9RVVPG2J`) or **The Hidden Sun** (`#LYPUC82Y`) and records their current achievement value as the season baseline.
+2. Current-season donations = `current achievement value − baseline at season start`.
+3. At every month boundary the bot automatically finalises the previous season's total and creates a new baseline for all linked players.
+4. Past season totals are stored and shown alongside current-season stats in the per-player view.
+
+The rollover scheduler runs every hour. If the bot is restarted mid-month, no data is lost — the next tick catches up any players missing a current-season snapshot.
 
 ### Moderation
 
@@ -240,9 +263,13 @@ src/
 │   └── messageCreate.js  ← Prefix command dispatcher + XP/ranking
 ├── lib/
 │   └── prisma.js         ← Prisma client singleton
+├── services/
+│   ├── cocApi.js         ← Clash of Clans API client
+│   └── donationScheduler.js ← Hourly season-rollover scheduler for donation tracking
 ├── utils/
 │   ├── checkRole.js      ← Role hierarchy helpers
 │   ├── CommandContext.js ← Unified slash/prefix execution context
+│   ├── donationUtils.js  ← Season key helpers and donation calculation
 │   ├── prefixParser.js   ← Tokenizer, member resolver, and arg parser for prefix commands
 │   └── muteScheduler.js  ← Handles timed unmutes
 ├── deploy-commands.js
