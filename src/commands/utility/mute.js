@@ -3,6 +3,8 @@ const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const { scheduleMute } = require('../../utils/muteScheduler');
 const Embeds = require('../../utils/embeds');
+const { hasRole } = require('../../utils/checkRole');
+const { sendModerationLog } = require('../../utils/moderationUtils');
 
 const ALLOWED_ROLE_KEYS = ['leadership', 'co_leader', 'admin'];
 
@@ -40,11 +42,6 @@ function formatDuration(ms) {
   return parts.join(' ') || '0m';
 }
 
-function isAuthorized(member) {
-  return ALLOWED_ROLE_KEYS.some(
-    key => config.role[key] && member.roles.cache.has(config.role[key])
-  );
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -65,7 +62,7 @@ module.exports = {
 
   async execute(interaction) {
     // Permission check
-    if (!isAuthorized(interaction.member)) {
+    if (!hasRole(interaction.member, ...ALLOWED_ROLE_KEYS)) {
       return interaction.reply({
         content: 'You do not have permission to use this command.',
         flags: MessageFlags.Ephemeral,
@@ -158,34 +155,17 @@ module.exports = {
       flags: MessageFlags.Ephemeral,
     });
 
-    // Log to leader notes channel
-    const logChannelId = config.channel.leader_notes;
-    try {
-      const logChannel = logChannelId
-        ? await interaction.client.channels.fetch(logChannelId)
-        : null;
-
-      if (logChannel) {
-        await logChannel.send({
-          embeds: [
-            Embeds.modLog({
-              title: '🔇 Member Muted',
-              color: Embeds.COLORS.mute,
-              target,
-              moderator: interaction.member,
-              fields: [
-                { name: '⏱️ Duration', value: durationLabel, inline: true },
-                { name: '📅 Expires',  value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`, inline: true },
-                { name: '📋 Reason',   value: reason },
-              ],
-            }),
-          ],
-        });
-      } else {
-        console.warn('[Mute] leader_notes channel not found or not configured.');
-      }
-    } catch (err) {
-      console.error('[Mute] Failed to send log:', err);
-    }
+    await sendModerationLog(interaction.client, {
+      label: 'Mute',
+      title: '🔇 Member Muted',
+      color: Embeds.COLORS.mute,
+      target,
+      moderator: interaction.member,
+      fields: [
+        { name: '⏱️ Duration', value: durationLabel, inline: true },
+        { name: '📅 Expires',  value: `<t:${Math.floor(expiresAt.getTime() / 1000)}:F>`, inline: true },
+        { name: '📋 Reason',   value: reason },
+      ],
+    });
   },
 };

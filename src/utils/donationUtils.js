@@ -59,10 +59,31 @@ function calcSeasonDonations(currentAchievement, baselineAchievement) {
   return Math.max(0, currentAchievement - baselineAchievement);
 }
 
+/**
+ * Normalises a CoC tag to uppercase with a leading #.
+ * @param {string} raw
+ * @returns {string}
+ */
+function normaliseTag(raw) {
+  const t = raw.trim().toUpperCase();
+  return t.startsWith('#') ? t : `#${t}`;
+}
+
+/**
+ * Returns true if the string is a valid CoC player tag (# followed by 3–12 alphanumeric chars).
+ * @param {string} tag  Should already be normalised (starts with #).
+ * @returns {boolean}
+ */
+function isValidCocTag(tag) {
+  return /^#[0-9A-Z]{3,12}$/.test(tag);
+}
+
 module.exports = {
   getCurrentSeasonKey,
   getPrevSeasonKey,
   getFriendInNeedValue,
   formatSeasonKey,
   calcSeasonDonations,
+  normaliseTag,
+  isValidCocTag,
 };

@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
+const { hasRole } = require('../../utils/checkRole');
+const { sendModerationLog } = require('../../utils/moderationUtils');
 
 // Roles that may use this command
 const ALLOWED_ROLE_KEYS = ['admin', 'co_leader'];
@@ -10,14 +11,6 @@ const ALLOWED_ROLE_KEYS = ['admin', 'co_leader'];
 const PROTECTED_ROLE_KEYS = ['admin', 'leadership', 'co_leader'];
 
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-
-function hasRole(member, ...keys) {
-  return keys.some(key => config.role[key] && member.roles.cache.has(config.role[key]));
-}
-
-function isAdmin(member) {
-  return !!(config.role.admin && member.roles.cache.has(config.role.admin));
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -39,7 +32,7 @@ module.exports = {
       });
     }
 
-    const callerIsAdmin = isAdmin(interaction.member);
+    const callerIsAdmin = hasRole(interaction.member, 'admin');
 
     // Cooldown check (co-leaders only)
     if (!callerIsAdmin) {
@@ -128,32 +121,13 @@ module.exports = {
       flags: MessageFlags.Ephemeral,
     });
 
-    // Log to leader notes channel
-    const logChannelId = config.channel.leader_notes;
-    try {
-      const logChannel = logChannelId
-        ? await interaction.client.channels.fetch(logChannelId)
-        : null;
-
-      if (logChannel) {
-        await logChannel.send({
-          embeds: [
-            Embeds.modLog({
-              title: '👢 Member Kicked',
-              color: Embeds.COLORS.kick,
-              target,
-              moderator: interaction.member,
-              fields: [
-                { name: '📋 Reason', value: reason },
-              ],
-            }),
-          ],
-        });
-      } else {
-        console.warn('[Kick] leader_notes channel not found or not configured.');
-      }
-    } catch (err) {
-      console.error('[Kick] Failed to send log:', err);
-    }
+    await sendModerationLog(interaction.client, {
+      label: 'Kick',
+      title: '👢 Member Kicked',
+      color: Embeds.COLORS.kick,
+      target,
+      moderator: interaction.member,
+      fields: [{ name: '📋 Reason', value: reason }],
+    });
   },
 };

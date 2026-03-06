@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
-const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
+const { hasRole } = require('../../utils/checkRole');
+const { sendModerationLog } = require('../../utils/moderationUtils');
 
 const BAN_GIF_URL = 'https://tenor.com/bxLSs.gif';
 
@@ -10,14 +11,6 @@ const ALLOWED_ROLE_KEYS = ['admin', 'co_leader'];
 
 // Roles that cannot be banned
 const PROTECTED_ROLE_KEYS = ['admin', 'leadership', 'co_leader'];
-
-function hasRole(member, ...keys) {
-  return keys.some(key => config.role[key] && member.roles.cache.has(config.role[key]));
-}
-
-function isAdmin(member) {
-  return !!(config.role.admin && member.roles.cache.has(config.role.admin));
-}
 
 async function getGifMode(guildId) {
   const setting = await prisma.guildSetting.findUnique({ where: { guildId } });
@@ -49,7 +42,7 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
 
     if (sub === 'toggle') {
-      if (!isAdmin(interaction.member)) {
+      if (!hasRole(interaction.member, 'admin')) {
         return interaction.reply({
           content: 'Only admins can toggle ban mode.',
           flags: MessageFlags.Ephemeral,
@@ -150,32 +143,13 @@ module.exports = {
       ],
     });
 
-    // Log to leader notes channel
-    const logChannelId = config.channel.leader_notes;
-    try {
-      const logChannel = logChannelId
-        ? await interaction.client.channels.fetch(logChannelId)
-        : null;
-
-      if (logChannel) {
-        await logChannel.send({
-          embeds: [
-            Embeds.modLog({
-              title: '🔨 Member Banned',
-              color: Embeds.COLORS.ban,
-              target,
-              moderator: interaction.member,
-              fields: [
-                { name: '📋 Reason', value: reason },
-              ],
-            }),
-          ],
-        });
-      } else {
-        console.warn('[Ban] leader_notes channel not found or not configured.');
-      }
-    } catch (err) {
-      console.error('[Ban] Failed to send log:', err);
-    }
+    await sendModerationLog(interaction.client, {
+      label: 'Ban',
+      title: '🔨 Member Banned',
+      color: Embeds.COLORS.ban,
+      target,
+      moderator: interaction.member,
+      fields: [{ name: '📋 Reason', value: reason }],
+    });
   },
 };
