@@ -111,35 +111,55 @@ module.exports = {
       const stardustEff  = effectiveRanks.find(r => r.level === 1);
       const stargazerEff = effectiveRanks.find(r => r.level === 2);
 
+      let alreadyHadRole = false;
       if (member) {
         try {
           const role = await getOrCreateRankRole(guild, stardustDef, stardustEff.effectiveName);
+          alreadyHadRole = member.roles.cache.has(role.id);
           await member.roles.add(role);
         } catch (err) {
           console.error(`[Rank] Failed to assign Stardust to ${author.tag}:`, err.message);
         }
       }
 
-      message.channel.send({
-        embeds: [
-          Embeds.info({
-            title:       '🌌 Rank Up!',
-            description: `Welcome to the ranks, <@${author.id}>${flair ? ` ${flair}` : ''}!`,
-            color:       stardustDef.color,
-            thumbnail:   author.displayAvatarURL(),
-            footer:      'Eclipse Bot • Ranking System',
-            fields: [
-              { name: '🏅 New Rank', value: stardustEff.effectiveName, inline: true },
-              { name: '📈 Next Rank', value: stargazerEff.effectiveName },
-            ],
-          }),
-        ],
-      }).catch(() => null);
+      if (!alreadyHadRole) {
+        message.channel.send({
+          embeds: [
+            Embeds.info({
+              title:       '🌌 Rank Up!',
+              description: `Welcome to the ranks, <@${author.id}>${flair ? ` ${flair}` : ''}!`,
+              color:       stardustDef.color,
+              thumbnail:   author.displayAvatarURL(),
+              footer:      'Eclipse Bot • Ranking System',
+              fields: [
+                { name: '🏅 New Rank', value: stardustEff.effectiveName, inline: true },
+                { name: '📈 Next Rank', value: stargazerEff.effectiveName },
+              ],
+            }),
+          ],
+        }).catch(() => null);
+      }
       return;
     }
 
     const earnedLevel = getRankForXp(newXp).level;
-    if (earnedLevel <= currentLevel) return; // No rank-up
+    if (earnedLevel <= currentLevel) {
+      // No rank-up — but silently restore role if leadership removed it
+      if (member) {
+        try {
+          const currentRankDef  = RANKS.find(r => r.level === currentLevel);
+          const currentEffective = effectiveRanks.find(r => r.level === currentLevel);
+          const currentRole     = await getOrCreateRankRole(guild, currentRankDef, currentEffective.effectiveName);
+          if (!member.roles.cache.has(currentRole.id)) {
+            await removeAllRankRoles(member, effectiveRanks);
+            await member.roles.add(currentRole);
+          }
+        } catch (err) {
+          console.error(`[Rank] Role restoration failed for ${author.tag}:`, err.message);
+        }
+      }
+      return;
+    }
 
     // Persist the new level
     await prisma.guildMember.update({
