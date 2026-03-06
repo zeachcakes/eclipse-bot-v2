@@ -66,6 +66,10 @@ class CommandContext {
   async editReply(options) {
     const payload = _buildPayload(options);
     if (this._sentReply) {
+      // Clear the ⏳ placeholder set by deferReply if no content is provided
+      if (this.deferred && !('content' in payload)) {
+        payload.content = '';
+      }
       return this._sentReply.edit(payload);
     }
     // Fallback: no prior reply — send a new one
