@@ -6,6 +6,32 @@ datasource db {
   provider = "postgresql"
 }
 
+model GuildMember {
+  userId       String
+  guildId      String
+  messageCount Int       @default(0)
+  xp           Int       @default(0)
+  rankLevel    Int       @default(1)
+  flair        String?
+  kickLastAt   DateTime? // moderator kick cooldown tracker
+  updatedAt    DateTime  @updatedAt
+
+  mutes       Mute[]    @relation("MuteTarget")
+  kicks       KickLog[] @relation("KickTarget")
+  warns       WarnLog[] @relation("WarnTarget")
+  bans        BanLog[]  @relation("BanTarget")
+
+  mutesIssued Mute[]    @relation("MuteModerator")
+  kicksIssued KickLog[] @relation("KickModerator")
+  warnsIssued WarnLog[] @relation("WarnModerator")
+  bansIssued  BanLog[]  @relation("BanModerator")
+
+  clanLinks ClanMember[]
+
+  @@id([userId, guildId])
+  @@index([guildId, xp(sort: Desc)])
+}
+
 model Mute {
   id          Int      @id @default(autoincrement())
   userId      String
@@ -15,6 +41,9 @@ model Mute {
   expiresAt   DateTime
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
+
+  target    GuildMember @relation("MuteTarget",    fields: [userId, guildId],      references: [userId, guildId], onDelete: Restrict)
+  moderator GuildMember @relation("MuteModerator", fields: [moderatorId, guildId], references: [userId, guildId], onDelete: Restrict)
 
   @@index([userId, guildId])
   @@index([active, expiresAt])
@@ -28,15 +57,10 @@ model KickLog {
   reason      String
   createdAt   DateTime @default(now())
 
+  target    GuildMember @relation("KickTarget",    fields: [userId, guildId],      references: [userId, guildId], onDelete: Restrict)
+  moderator GuildMember @relation("KickModerator", fields: [moderatorId, guildId], references: [userId, guildId], onDelete: Restrict)
+
   @@index([userId, guildId])
-}
-
-model KickCooldown {
-  userId     String
-  guildId    String
-  lastKickAt DateTime
-
-  @@id([userId, guildId])
 }
 
 model WarnLog {
@@ -47,19 +71,10 @@ model WarnLog {
   reason      String
   createdAt   DateTime @default(now())
 
+  target    GuildMember @relation("WarnTarget",    fields: [userId, guildId],      references: [userId, guildId], onDelete: Restrict)
+  moderator GuildMember @relation("WarnModerator", fields: [moderatorId, guildId], references: [userId, guildId], onDelete: Restrict)
+
   @@index([userId, guildId])
-}
-
-model UserRank {
-  userId       String
-  guildId      String
-  messageCount Int      @default(0)
-  xp           Int      @default(0)
-  rankLevel    Int      @default(1)
-  updatedAt    DateTime @updatedAt
-
-  @@id([userId, guildId])
-  @@index([guildId, xp(sort: Desc)])
 }
 
 model GuildRankConfig {
@@ -68,14 +83,6 @@ model GuildRankConfig {
   name      String
 
   @@id([guildId, rankLevel])
-}
-
-model UserFlair {
-  userId  String
-  guildId String
-  flair   String
-
-  @@id([userId, guildId])
 }
 
 model GuildFlairPool {
@@ -99,17 +106,28 @@ model BanLog {
   reason      String
   createdAt   DateTime @default(now())
 
+  target    GuildMember @relation("BanTarget",    fields: [userId, guildId],      references: [userId, guildId], onDelete: Restrict)
+  moderator GuildMember @relation("BanModerator", fields: [moderatorId, guildId], references: [userId, guildId], onDelete: Restrict)
+
   @@index([userId, guildId])
 }
 
-model PlayerLink {
-  userId    String
-  guildId   String
-  playerTag String
-  createdAt DateTime @default(now())
+model ClanMember {
+  playerTag  String    @id
+  playerName String?
+  clanTag    String?
+  userId     String?   // Discord userId — null if not linked
+  guildId    String?   // Discord guildId — null if not linked
+  linkedAt   DateTime?
+  leftAt     DateTime? // set when player leaves clan; null = currently active
+  updatedAt  DateTime  @updatedAt
 
-  @@id([userId, guildId])
-  @@index([playerTag])
+  donationSnapshots DonationSeasonSnapshot[]
+  discordMember     GuildMember? @relation(fields: [userId, guildId], references: [userId, guildId])
+
+  @@index([userId])
+  @@index([clanTag])
+  @@index([leftAt])
 }
 
 model DonationSeasonSnapshot {
@@ -119,6 +137,8 @@ model DonationSeasonSnapshot {
   currentSeasonDonations Int      @default(0)
   finalDonations         Int?
   createdAt              DateTime @default(now())
+
+  member ClanMember @relation(fields: [playerTag], references: [playerTag], onDelete: Cascade)
 
   @@id([playerTag, seasonKey])
   @@index([seasonKey])

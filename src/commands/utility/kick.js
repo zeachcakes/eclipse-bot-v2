@@ -36,11 +36,12 @@ module.exports = {
 
     // Cooldown check (co-leaders only)
     if (!callerIsAdmin) {
-      const cooldown = await prisma.kickCooldown.findUnique({
-        where: { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+      const modRecord = await prisma.guildMember.findUnique({
+        where:  { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+        select: { kickLastAt: true },
       });
-      if (cooldown) {
-        const remaining = COOLDOWN_MS - (Date.now() - cooldown.lastKickAt.getTime());
+      if (modRecord?.kickLastAt) {
+        const remaining = COOLDOWN_MS - (Date.now() - modRecord.kickLastAt.getTime());
         if (remaining > 0) {
           const minutes = Math.ceil(remaining / 60_000);
           return interaction.reply({
@@ -89,7 +90,20 @@ module.exports = {
       });
     }
 
-    // Persist kick log and update cooldown for co-leaders
+    // Ensure GuildMember records exist for both target and moderator (required by FK)
+    await Promise.all([
+      prisma.guildMember.upsert({
+        where:  { userId_guildId: { userId: target.id, guildId: interaction.guild.id } },
+        update: {},
+        create: { userId: target.id, guildId: interaction.guild.id },
+      }),
+      prisma.guildMember.upsert({
+        where:  { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+        update: !callerIsAdmin ? { kickLastAt: new Date() } : {},
+        create: { userId: interaction.user.id, guildId: interaction.guild.id, kickLastAt: !callerIsAdmin ? new Date() : undefined },
+      }),
+    ]);
+
     await prisma.kickLog.create({
       data: {
         userId: target.id,
@@ -98,14 +112,6 @@ module.exports = {
         reason,
       },
     });
-
-    if (!callerIsAdmin) {
-      await prisma.kickCooldown.upsert({
-        where: { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
-        update: { lastKickAt: new Date() },
-        create: { userId: interaction.user.id, guildId: interaction.guild.id, lastKickAt: new Date() },
-      });
-    }
 
     await interaction.reply({
       embeds: [

@@ -114,7 +114,7 @@ async function replyLeaderboard(interaction, count) {
       where:  { seasonKey, playerTag: { in: allTags } },
       select: { playerTag: true, currentSeasonDonations: true },
     }),
-    prisma.playerLink.findMany({
+    prisma.clanMember.findMany({
       where:  { guildId: guild.id, playerTag: { in: allTags } },
       select: { playerTag: true, userId: true },
     }),
@@ -215,8 +215,8 @@ module.exports = {
 
     // 1. Slash `player` option (Discord user picker)
     if (memberOpt) {
-      const link = await prisma.playerLink.findUnique({
-        where: { userId_guildId: { userId: memberOpt.id, guildId: interaction.guild.id } },
+      const link = await prisma.clanMember.findFirst({
+        where: { userId: memberOpt.id, guildId: interaction.guild.id },
       });
       if (!link) {
         return interaction.editReply({
@@ -241,8 +241,8 @@ module.exports = {
 
     const member = await resolveMember(interaction.guild, trimmed);
     if (member) {
-      const link = await prisma.playerLink.findUnique({
-        where: { userId_guildId: { userId: member.id, guildId: interaction.guild.id } },
+      const link = await prisma.clanMember.findFirst({
+        where: { userId: member.id, guildId: interaction.guild.id },
       });
       if (!link) {
         return interaction.editReply({

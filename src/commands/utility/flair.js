@@ -163,7 +163,7 @@ module.exports = {
       const target = interaction.options.getMember('user');
       const emoji  = interaction.options.getString('emoji').trim();
 
-      await prisma.userFlair.upsert({
+      await prisma.guildMember.upsert({
         where:  { userId_guildId: { userId: target.id, guildId: guild.id } },
         update: { flair: emoji },
         create: { userId: target.id, guildId: guild.id, flair: emoji },
@@ -186,16 +186,23 @@ module.exports = {
         });
       }
 
-      const target  = interaction.options.getMember('user');
-      const deleted = await prisma.userFlair.deleteMany({
-        where: { userId: target.id, guildId: guild.id },
+      const target = interaction.options.getMember('user');
+
+      const existing = await prisma.guildMember.findUnique({
+        where:  { userId_guildId: { userId: target.id, guildId: guild.id } },
+        select: { flair: true },
       });
 
-      if (deleted.count === 0) {
+      if (!existing?.flair) {
         return interaction.editReply({
           content: `${target.displayName} has no flair to remove.`,
         });
       }
+
+      await prisma.guildMember.update({
+        where: { userId_guildId: { userId: target.id, guildId: guild.id } },
+        data:  { flair: null },
+      });
 
       return interaction.editReply({
         content: `Removed flair from ${target.displayName}.`,
@@ -215,7 +222,7 @@ module.exports = {
         });
       }
 
-      await prisma.userFlair.upsert({
+      await prisma.guildMember.upsert({
         where:  { userId_guildId: { userId: member.id, guildId: guild.id } },
         update: { flair: emoji },
         create: { userId: member.id, guildId: guild.id, flair: emoji },
@@ -232,13 +239,19 @@ module.exports = {
     }
 
     if (sub === 'clear') {
-      const deleted = await prisma.userFlair.deleteMany({
-        where: { userId: member.id, guildId: guild.id },
+      const existing = await prisma.guildMember.findUnique({
+        where:  { userId_guildId: { userId: member.id, guildId: guild.id } },
+        select: { flair: true },
       });
 
-      if (deleted.count === 0) {
+      if (!existing?.flair) {
         return interaction.editReply({ content: 'You have no flair to clear.' });
       }
+
+      await prisma.guildMember.update({
+        where: { userId_guildId: { userId: member.id, guildId: guild.id } },
+        data:  { flair: null },
+      });
 
       return interaction.editReply({ content: 'Your flair has been removed.' });
     }
@@ -246,11 +259,12 @@ module.exports = {
     if (sub === 'view') {
       const target = interaction.options.getMember('user') ?? member;
 
-      const record = await prisma.userFlair.findUnique({
-        where: { userId_guildId: { userId: target.id, guildId: guild.id } },
+      const record = await prisma.guildMember.findUnique({
+        where:  { userId_guildId: { userId: target.id, guildId: guild.id } },
+        select: { flair: true },
       });
 
-      if (!record) {
+      if (!record?.flair) {
         const isSelf = target.id === member.id;
         return interaction.editReply({
           content: isSelf

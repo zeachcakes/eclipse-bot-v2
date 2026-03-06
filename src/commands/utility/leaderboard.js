@@ -54,7 +54,7 @@ module.exports = {
     // ── XP leaderboard ────────────────────────────────────────────────────────
     if (sort === 'xp') {
       const [topRecords, effectiveRanks] = await Promise.all([
-        prisma.userRank.findMany({
+        prisma.guildMember.findMany({
           where:   { guildId: guild.id },
           orderBy: { xp: 'desc' },
           take:    count,

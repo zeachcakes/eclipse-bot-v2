@@ -17,7 +17,7 @@ module.exports = {
     const { guild } = interaction;
 
     const [record, effectiveRanks, flair] = await Promise.all([
-      prisma.userRank.findUnique({
+      prisma.guildMember.findUnique({
         where: { userId_guildId: { userId: target.id, guildId: guild.id } },
       }),
       getAllEffectiveRanks(guild.id),
