@@ -1,11 +1,12 @@
 const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const prisma = require('../../lib/prisma');
 const cocApi = require('../../services/cocApi');
+const config = require('../../config');
 const { hasRole } = require('../../utils/checkRole');
 const Embeds = require('../../utils/embeds');
 const { resolveMember } = require('../../utils/prefixParser');
 const { getFlairsForUsers } = require('../../utils/flairUtils');
-const { formatLeaderboardRow, formatRequesterLine } = require('../../utils/leaderboardUtils');
+const { formatLeaderboardRow, formatRequesterLine, resolveLeaderboardOptions } = require('../../utils/leaderboardUtils');
 const {
   getCurrentSeasonKey,
   getFriendInNeedValue,
@@ -40,13 +41,20 @@ async function replyPlayerDonations(interaction, playerTag, displayName) {
 
   const currentValue = getFriendInNeedValue(player);
 
-  if (!snapshot) {
-    return interaction.editReply({
-      content: `No donation baseline found for **${displayName}** this season. Their account may have been linked after the season started — data will appear next season.`,
-    });
-  }
+  let seasonDonations;
+  let accuracyNote;
 
-  const seasonDonations = calcSeasonDonations(currentValue, snapshot.baselineAchievement);
+  if (snapshot) {
+    const finDelta  = calcSeasonDonations(currentValue, snapshot.baselineAchievement);
+    // Max strategy: FiN delta handles cross-hop tracking; in-clan count handles
+    // players who linked mid-season after already donating (baseline > actual start).
+    seasonDonations = Math.max(finDelta, player.donations ?? 0);
+    accuracyNote    = null;
+  } else {
+    // No baseline — fall back to in-clan count from CoC API
+    seasonDonations = player.donations ?? 0;
+    accuracyNote    = '-# In-clan only — `/link` for cross-hop tracking';
+  }
 
   // Build recent history (last 3 completed seasons)
   const history = await prisma.donationSeasonSnapshot.findMany({
@@ -61,11 +69,17 @@ async function replyPlayerDonations(interaction, playerTag, displayName) {
     inline: true,
   }));
 
+  const descLines = [
+    `**${formatSeasonKey(seasonKey)}** (current)`,
+    `🎁 **${seasonDonations.toLocaleString()}** donations`,
+  ];
+  if (accuracyNote) descLines.push(accuracyNote);
+
   return interaction.editReply({
     embeds: [
       Embeds.info({
         title:       `Donations — ${player.name}`,
-        description: `**${formatSeasonKey(seasonKey)}** (current)\n🎁 **${seasonDonations.toLocaleString()}** donations`,
+        description: descLines.join('\n'),
         thumbnail:   player.league?.iconUrls?.small ?? null,
         footer:      `${player.tag} • Eclipse Bot`,
         fields:      historyFields.length ? [
@@ -83,72 +97,73 @@ async function replyLeaderboard(interaction, count) {
   const seasonKey = getCurrentSeasonKey();
   const { guild }  = interaction;
 
-  // Get all snapshots for current season
-  const snapshots = await prisma.donationSeasonSnapshot.findMany({
-    where: { seasonKey },
-  });
+  // 1. Fetch both clan member lists (2 API calls — includes in-clan donations)
+  const [clan1, clan2] = await Promise.all([
+    cocApi.getClan(config.clanTag),
+    cocApi.getClan(config.clanTag2),
+  ]);
 
-  if (snapshots.length === 0) {
-    return interaction.editReply({
-      content: 'No donation data for this season yet. Members need to `/link` their CoC accounts first.',
-    });
+  const allMembers = [...(clan1.memberList ?? []), ...(clan2.memberList ?? [])];
+
+  // Deduplicate (a tag should only appear once across both clans)
+  const memberMap = new Map();
+  for (const m of allMembers) {
+    if (!memberMap.has(m.tag)) memberMap.set(m.tag, m);
   }
 
-  // Find linked Discord users for this guild
-  const links = await prisma.playerLink.findMany({
-    where: { guildId: guild.id, playerTag: { in: snapshots.map(s => s.playerTag) } },
-  });
+  if (memberMap.size === 0) {
+    return interaction.editReply({ content: 'Could not retrieve clan members from the CoC API.' });
+  }
 
-  const tagToUserId   = new Map(links.map(l => [l.playerTag, l.userId]));
-  const tagToBaseline = new Map(snapshots.map(s => [s.playerTag, s.baselineAchievement]));
+  const allTags = [...memberMap.keys()];
 
-  // Fetch current achievement values for all players concurrently
-  const playerResults = await Promise.allSettled(
-    snapshots.map(async s => {
-      const player = await cocApi.getPlayer(s.playerTag);
-      return {
-        playerTag:    s.playerTag,
-        playerName:   player.name,
-        currentValue: getFriendInNeedValue(player),
-      };
+  // 2. Load cached season snapshots + Discord links from DB
+  const [snapshots, links] = await Promise.all([
+    prisma.donationSeasonSnapshot.findMany({
+      where:  { seasonKey, playerTag: { in: allTags } },
+      select: { playerTag: true, currentSeasonDonations: true },
     }),
-  );
+    prisma.playerLink.findMany({
+      where:  { guildId: guild.id, playerTag: { in: allTags } },
+      select: { playerTag: true, userId: true },
+    }),
+  ]);
 
-  const entries = playerResults
-    .filter(r => r.status === 'fulfilled')
-    .map(r => {
-      const { playerTag, playerName, currentValue } = r.value;
-      const baseline = tagToBaseline.get(playerTag) ?? 0;
-      return {
-        playerTag,
-        playerName,
-        userId:    tagToUserId.get(playerTag) ?? null,
-        donations: calcSeasonDonations(currentValue, baseline),
-      };
-    })
-    .sort((a, b) => b.donations - a.donations)
-    .slice(0, count);
+  const tagToSnapshot = new Map(snapshots.map(s => [s.playerTag, s.currentSeasonDonations]));
+  const tagToUserId   = new Map(links.map(l => [l.playerTag, l.userId]));
 
-  if (entries.length === 0) {
-    return interaction.editReply({ content: 'No donation data available for this season.' });
-  }
+  // 3. Build entries — best available donation count for each member
+  const entries = allTags.map(tag => {
+    const member            = memberMap.get(tag);
+    const snapshotDonations = tagToSnapshot.get(tag) ?? 0;
+    const clanDonations     = member.donations ?? 0;
+    return {
+      playerTag:  tag,
+      playerName: member.name,
+      userId:     tagToUserId.get(tag) ?? null,
+      donations:  Math.max(snapshotDonations, clanDonations),
+    };
+  });
 
-  // Fetch Discord members + flairs for linked users
-  const linkedUserIds = entries.map(e => e.userId).filter(Boolean);
-  const [memberMap, flairs] = await Promise.all([
+  entries.sort((a, b) => b.donations - a.donations);
+  const top = entries.slice(0, count);
+
+  // 4. Fetch Discord display names + flairs for linked users
+  const linkedUserIds = top.map(e => e.userId).filter(Boolean);
+  const [memberDiscordMap, flairs] = await Promise.all([
     Promise.all(linkedUserIds.map(id => guild.members.fetch(id).catch(() => null))).then(
       members => new Map(members.filter(Boolean).map(m => [m.id, m])),
     ),
     getFlairsForUsers(linkedUserIds, guild.id),
   ]);
 
-  const maxDonLen = Math.max(...entries.map(e => e.donations.toLocaleString().length));
+  const maxDonLen = Math.max(...top.map(e => e.donations.toLocaleString().length));
 
-  const lines = entries.map((e, i) => {
-    const statPart = `${e.donations.toLocaleString().padStart(maxDonLen)} donations`;
-    const member   = e.userId ? memberMap.get(e.userId) : null;
-    const baseName = member?.displayName ?? e.playerName;
-    const flair    = e.userId ? flairs.get(e.userId) : null;
+  const lines = top.map((e, i) => {
+    const statPart     = `${e.donations.toLocaleString().padStart(maxDonLen)} donations`;
+    const discordMember = e.userId ? memberDiscordMap.get(e.userId) : null;
+    const baseName      = discordMember?.displayName ?? e.playerName;
+    const flair         = e.userId ? flairs.get(e.userId) : null;
     return formatLeaderboardRow(i + 1, statPart, baseName, flair);
   });
 
@@ -179,10 +194,8 @@ module.exports = {
         .setName('count')
         .setDescription('How many members to show on the leaderboard (default 10)')
         .setRequired(false)
-        .addChoices(
-          { name: 'Top 10', value: 10 },
-          { name: 'Top 20', value: 20 },
-        ),
+        .setMinValue(1)
+        .setMaxValue(50),
     )
     .addUserOption(opt =>
       opt
@@ -202,8 +215,10 @@ module.exports = {
     await interaction.deferReply();
 
     const memberOpt = interaction.options.getMember('player');
-    const targetStr = interaction.options.getString('target');
-    const count     = interaction.options.getInteger('count') ?? 10;
+    const { isLeaderboard, target: targetStr, count } = resolveLeaderboardOptions({
+      target: interaction.options.getString('target'),
+      count:  interaction.options.getInteger('count'),
+    });
 
     // ── Resolve who we're looking up ─────────────────────────────────────────
 
@@ -220,36 +235,34 @@ module.exports = {
       return replyPlayerDonations(interaction, link.playerTag, memberOpt.displayName);
     }
 
-    // 2. String `target` option — CoC tag, mention, or user ID
-    if (targetStr) {
-      const trimmed = targetStr.trim();
-
-      // CoC tag (starts with # or looks like one)
-      if (isCocTag(trimmed)) {
-        const playerTag = normaliseTag(trimmed);
-        return replyPlayerDonations(interaction, playerTag, playerTag);
-      }
-
-      // Discord mention / user ID / display name
-      const member = await resolveMember(interaction.guild, trimmed);
-      if (member) {
-        const link = await prisma.playerLink.findUnique({
-          where: { userId_guildId: { userId: member.id, guildId: interaction.guild.id } },
-        });
-        if (!link) {
-          return interaction.editReply({
-            content: `**${member.displayName}** hasn't linked a CoC account yet. Tell them to use \`/link\`.`,
-          });
-        }
-        return replyPlayerDonations(interaction, link.playerTag, member.displayName);
-      }
-
-      return interaction.editReply({
-        content: `Could not resolve \`${targetStr}\` as a Discord member or CoC tag.`,
-      });
+    // 2. Leaderboard — no target, bare integer, or `top [N]` alias
+    if (isLeaderboard) {
+      return replyLeaderboard(interaction, count);
     }
 
-    // 3. No target — show leaderboard
-    return replyLeaderboard(interaction, count);
+    // 3. String `target` — CoC tag, mention, or user ID
+    const trimmed = targetStr.trim();
+
+    if (isCocTag(trimmed)) {
+      const playerTag = normaliseTag(trimmed);
+      return replyPlayerDonations(interaction, playerTag, playerTag);
+    }
+
+    const member = await resolveMember(interaction.guild, trimmed);
+    if (member) {
+      const link = await prisma.playerLink.findUnique({
+        where: { userId_guildId: { userId: member.id, guildId: interaction.guild.id } },
+      });
+      if (!link) {
+        return interaction.editReply({
+          content: `**${member.displayName}** hasn't linked a CoC account yet. Tell them to use \`/link\`.`,
+        });
+      }
+      return replyPlayerDonations(interaction, link.playerTag, member.displayName);
+    }
+
+    return interaction.editReply({
+      content: `Could not resolve \`${targetStr}\` as a Discord member or CoC tag.`,
+    });
   },
 };

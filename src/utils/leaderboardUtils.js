@@ -35,4 +35,41 @@ function formatRequesterLine(member) {
   return `Requested by ${member.displayName} on ${dateStr} at ${timeStr} EST`;
 }
 
-module.exports = { formatLeaderboardRow, formatRequesterLine };
+/**
+ * Resolves the `target` and `count` options for commands that support both a
+ * leaderboard view and a single-player lookup.
+ *
+ * Handles the prefix-command limitation where `count` can't be passed without
+ * also occupying the `target` slot positionally. Supported aliases:
+ *
+ *   ~cmd 20          → leaderboard, count=20   (bare integer as target)
+ *   ~cmd top 20      → leaderboard, count=20   (keyword "top" + count arg)
+ *   ~cmd top         → leaderboard, count=default
+ *   ~cmd @user       → single-player lookup
+ *   ~cmd #TAG        → single-player lookup
+ *
+ * @param {{ target: string|null, count: number|null }} opts
+ * @param {number} [defaultCount=10]
+ * @returns {{ isLeaderboard: boolean, target: string|null, count: number }}
+ */
+function resolveLeaderboardOptions({ target, count }, defaultCount = 10) {
+  // Bare integer as target → treat as count
+  if (target !== null && /^\d+$/.test(target.trim())) {
+    return { isLeaderboard: true, target: null, count: parseInt(target, 10) };
+  }
+
+  // "top [N]" keyword alias
+  if (target?.toLowerCase() === 'top') {
+    return { isLeaderboard: true, target: null, count: count ?? defaultCount };
+  }
+
+  // No target → leaderboard with default or supplied count
+  if (target === null) {
+    return { isLeaderboard: true, target: null, count: count ?? defaultCount };
+  }
+
+  // Actual lookup target
+  return { isLeaderboard: false, target, count: count ?? defaultCount };
+}
+
+module.exports = { formatLeaderboardRow, formatRequesterLine, resolveLeaderboardOptions };

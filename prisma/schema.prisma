@@ -113,12 +113,14 @@ model PlayerLink {
 }
 
 model DonationSeasonSnapshot {
-  playerTag           String
-  seasonKey           String
-  baselineAchievement Int
-  finalDonations      Int?
-  createdAt           DateTime @default(now())
+  playerTag              String
+  seasonKey              String
+  baselineAchievement    Int
+  currentSeasonDonations Int      @default(0)
+  finalDonations         Int?
+  createdAt              DateTime @default(now())
 
   @@id([playerTag, seasonKey])
   @@index([seasonKey])
+  @@index([playerTag])
 }
