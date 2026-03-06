@@ -2,14 +2,10 @@ const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const config = require('../../config');
 const prisma = require('../../lib/prisma');
 const Embeds = require('../../utils/embeds');
+const { hasRole } = require('../../utils/checkRole');
+const { sendModerationLog } = require('../../utils/moderationUtils');
 
 const ALLOWED_ROLE_KEYS = ['leadership', 'co_leader', 'admin'];
-
-function isAuthorized(member) {
-  return ALLOWED_ROLE_KEYS.some(
-    key => config.role[key] && member.roles.cache.has(config.role[key])
-  );
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,7 +19,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    if (!isAuthorized(interaction.member)) {
+    if (!hasRole(interaction.member, ...ALLOWED_ROLE_KEYS)) {
       return interaction.reply({
         content: 'You do not have permission to use this command.',
         flags: MessageFlags.Ephemeral,
@@ -76,32 +72,13 @@ module.exports = {
       flags: MessageFlags.Ephemeral,
     });
 
-    // Log to leader notes channel
-    const logChannelId = config.channel.leader_notes;
-    try {
-      const logChannel = logChannelId
-        ? await interaction.client.channels.fetch(logChannelId)
-        : null;
-
-      if (logChannel) {
-        await logChannel.send({
-          embeds: [
-            Embeds.modLog({
-              title: '🔊 Member Unmuted',
-              color: Embeds.COLORS.unmute,
-              target,
-              moderator: interaction.member,
-              fields: [
-                { name: '📋 Reason', value: reason },
-              ],
-            }),
-          ],
-        });
-      } else {
-        console.warn('[Unmute] leader_notes channel not found or not configured.');
-      }
-    } catch (err) {
-      console.error('[Unmute] Failed to send log:', err);
-    }
+    await sendModerationLog(interaction.client, {
+      label: 'Unmute',
+      title: '🔊 Member Unmuted',
+      color: Embeds.COLORS.unmute,
+      target,
+      moderator: interaction.member,
+      fields: [{ name: '📋 Reason', value: reason }],
+    });
   },
 };

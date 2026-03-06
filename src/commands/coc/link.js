@@ -5,20 +5,10 @@ const { ensureCurrentSnapshot } = require('../../services/donationScheduler');
 const { hasRole } = require('../../utils/checkRole');
 const Embeds = require('../../utils/embeds');
 const config = require('../../config');
+const { normaliseTag, isValidCocTag } = require('../../utils/donationUtils');
 
 const CLAN_TAGS = new Set([config.clanTag, config.clanTag2]);
 const ALLOWED_ROLES = ['eclipse', 'hidden_sun', 'co_leader', 'elder'];
-
-/** Normalises a CoC tag — ensures it starts with # and is uppercase. */
-function normaliseTag(raw) {
-  const trimmed = raw.trim().toUpperCase();
-  return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
-}
-
-/** Basic format check: # followed by 3–12 alphanumeric chars. */
-function isValidTagFormat(tag) {
-  return /^#[0-9A-Z]{3,12}$/.test(tag);
-}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -42,7 +32,7 @@ module.exports = {
     const rawTag    = interaction.options.getString('player_tag');
     const playerTag = normaliseTag(rawTag);
 
-    if (!isValidTagFormat(playerTag)) {
+    if (!isValidCocTag(playerTag)) {
       return interaction.reply({
         content: `\`${rawTag}\` doesn't look like a valid CoC tag. Use the format \`#ABC123\`.`,
         flags: MessageFlags.Ephemeral,

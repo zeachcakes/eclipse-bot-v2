@@ -12,20 +12,11 @@ const {
   getFriendInNeedValue,
   formatSeasonKey,
   calcSeasonDonations,
+  normaliseTag,
+  isValidCocTag,
 } = require('../../utils/donationUtils');
 
 const ALLOWED_ROLES = ['eclipse', 'hidden_sun', 'co_leader', 'elder'];
-
-/** Returns true if the string looks like a CoC player tag. */
-function isCocTag(str) {
-  return /^#?[0-9A-Z]{3,12}$/i.test(str.trim());
-}
-
-/** Normalises a CoC tag to uppercase with leading #. */
-function normaliseTag(raw) {
-  const t = raw.trim().toUpperCase();
-  return t.startsWith('#') ? t : `#${t}`;
-}
 
 // ─── Single-player lookup ─────────────────────────────────────────────────────
 
@@ -243,7 +234,7 @@ module.exports = {
     // 3. String `target` — CoC tag, mention, or user ID
     const trimmed = targetStr.trim();
 
-    if (isCocTag(trimmed)) {
+    if (isValidCocTag(normaliseTag(trimmed))) {
       const playerTag = normaliseTag(trimmed);
       return replyPlayerDonations(interaction, playerTag, playerTag);
     }
