@@ -7,8 +7,9 @@ const prisma = require('../lib/prisma');
  * @returns {Promise<string|null>}
  */
 async function getUserFlair(userId, guildId) {
-  const record = await prisma.userFlair.findUnique({
-    where: { userId_guildId: { userId, guildId } },
+  const record = await prisma.guildMember.findUnique({
+    where:  { userId_guildId: { userId, guildId } },
+    select: { flair: true },
   });
   return record?.flair ?? null;
 }
@@ -20,8 +21,9 @@ async function getUserFlair(userId, guildId) {
  * @returns {Promise<Map<string, string>>} Map of userId → flair emoji
  */
 async function getFlairsForUsers(userIds, guildId) {
-  const records = await prisma.userFlair.findMany({
-    where: { guildId, userId: { in: userIds } },
+  const records = await prisma.guildMember.findMany({
+    where:  { guildId, userId: { in: userIds }, flair: { not: null } },
+    select: { userId: true, flair: true },
   });
   return new Map(records.map(r => [r.userId, r.flair]));
 }

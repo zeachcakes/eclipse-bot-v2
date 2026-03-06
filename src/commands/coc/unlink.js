@@ -18,8 +18,8 @@ module.exports = {
       });
     }
 
-    const existing = await prisma.playerLink.findUnique({
-      where: { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+    const existing = await prisma.clanMember.findFirst({
+      where: { userId: interaction.user.id, guildId: interaction.guild.id },
     });
 
     if (!existing) {
@@ -29,8 +29,9 @@ module.exports = {
       });
     }
 
-    await prisma.playerLink.delete({
-      where: { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+    await prisma.clanMember.update({
+      where: { playerTag: existing.playerTag },
+      data:  { userId: null, guildId: null, linkedAt: null },
     });
 
     return interaction.reply({

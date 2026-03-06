@@ -52,6 +52,13 @@ module.exports = {
       });
     }
 
+    // Ensure moderator has a GuildMember record (required by FK on future mute logs)
+    await prisma.guildMember.upsert({
+      where:  { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+      update: {},
+      create: { userId: interaction.user.id, guildId: interaction.guild.id },
+    });
+
     // Deactivate any active DB mute records for this user
     await prisma.mute.updateMany({
       where: { userId: target.id, guildId: interaction.guild.id, active: true },

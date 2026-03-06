@@ -87,7 +87,7 @@ module.exports = {
     const { author, guild } = message;
 
     // Increment message count and grant XP on every message
-    const record = await prisma.userRank.upsert({
+    const record = await prisma.guildMember.upsert({
       where:  { userId_guildId: { userId: author.id, guildId: guild.id } },
       update: { messageCount: { increment: 1 }, xp: { increment: XP_PER_MESSAGE } },
       create: { userId: author.id, guildId: guild.id, messageCount: 1, xp: XP_PER_MESSAGE, rankLevel: 1 },
@@ -142,7 +142,7 @@ module.exports = {
     if (earnedLevel <= currentLevel) return; // No rank-up
 
     // Persist the new level
-    await prisma.userRank.update({
+    await prisma.guildMember.update({
       where: { userId_guildId: { userId: author.id, guildId: guild.id } },
       data:  { rankLevel: earnedLevel },
     });

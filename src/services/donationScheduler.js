@@ -1,12 +1,71 @@
 const prisma = require('../lib/prisma');
 const cocApi = require('./cocApi');
+const config = require('../config');
 const {
   getCurrentSeasonKey,
   getPrevSeasonKey,
   getFriendInNeedValue,
 } = require('../utils/donationUtils');
 
-const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const POLL_INTERVAL_MS  = 60 * 60 * 1000; // 1 hour
+const LEFT_TTL_DAYS     = 10;
+const LEFT_TTL_MS       = LEFT_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Syncs the ClanMember table against the live clan rosters.
+ *
+ * - Upserts a record for every current member (clears leftAt if they rejoined).
+ * - Sets leftAt = now() for members no longer in either roster (if not already set).
+ * - Deletes members whose leftAt is older than LEFT_TTL_DAYS (cascades snapshots).
+ */
+async function syncClanRoster() {
+  const [clan1, clan2] = await Promise.all([
+    cocApi.getClan(config.clanTag),
+    cocApi.getClan(config.clanTag2),
+  ]);
+
+  const currentMembers = new Map();
+  for (const m of (clan1.memberList ?? [])) {
+    currentMembers.set(m.tag, { playerName: m.name, clanTag: config.clanTag });
+  }
+  for (const m of (clan2.memberList ?? [])) {
+    if (!currentMembers.has(m.tag)) {
+      currentMembers.set(m.tag, { playerName: m.name, clanTag: config.clanTag2 });
+    }
+  }
+
+  if (currentMembers.size === 0) return;
+
+  // Upsert all current members (reset leftAt to null for any who rejoined)
+  await Promise.all(
+    [...currentMembers.entries()].map(([playerTag, { playerName, clanTag }]) =>
+      prisma.clanMember.upsert({
+        where:  { playerTag },
+        update: { playerName, clanTag, leftAt: null },
+        create: { playerTag, playerName, clanTag },
+      }),
+    ),
+  );
+
+  // Mark members no longer in the roster as left (only if leftAt not yet set)
+  await prisma.clanMember.updateMany({
+    where: {
+      playerTag: { notIn: [...currentMembers.keys()] },
+      leftAt:    null,
+    },
+    data: { leftAt: new Date() },
+  });
+
+  // Delete members who have been gone for more than LEFT_TTL_DAYS (cascades snapshots)
+  const cutoff = new Date(Date.now() - LEFT_TTL_MS);
+  const deleted = await prisma.clanMember.deleteMany({
+    where: { leftAt: { lte: cutoff } },
+  });
+
+  if (deleted.count > 0) {
+    console.log(`[DonationScheduler] Removed ${deleted.count} ex-member(s) after ${LEFT_TTL_DAYS}-day grace period.`);
+  }
+}
 
 /**
  * Each tick handles all linked players in two groups:
@@ -23,7 +82,9 @@ async function rolloverIfNeeded() {
   const seasonKey = getCurrentSeasonKey();
   const prevKey   = getPrevSeasonKey(seasonKey);
 
-  const links = await prisma.playerLink.findMany();
+  const links = await prisma.clanMember.findMany({
+    where: { userId: { not: null }, leftAt: null },
+  });
   if (links.length === 0) return { rolledOver: 0, refreshed: 0 };
 
   const allTags = links.map(l => l.playerTag);
@@ -111,19 +172,24 @@ async function ensureCurrentSnapshot(playerTag) {
 }
 
 /**
- * Starts the scheduler — runs an immediate check then polls every hour.
+ * Runs one full scheduler tick: roster sync followed by donation rollover/refresh.
  */
-function startDonationScheduler() {
-  rolloverIfNeeded().catch(err =>
-    console.error('[DonationScheduler] Initial rollover failed:', err),
+async function tick() {
+  await syncClanRoster().catch(err =>
+    console.error('[DonationScheduler] Roster sync failed:', err),
   );
-  setInterval(() => {
-    rolloverIfNeeded().catch(err =>
-      console.error('[DonationScheduler] Scheduled rollover failed:', err),
-    );
-  }, POLL_INTERVAL_MS);
-
-  console.log('[DonationScheduler] Started — syncing donations every hour.');
+  await rolloverIfNeeded().catch(err =>
+    console.error('[DonationScheduler] Rollover failed:', err),
+  );
 }
 
-module.exports = { startDonationScheduler, ensureCurrentSnapshot, rolloverIfNeeded };
+/**
+ * Starts the scheduler — runs an immediate tick then polls every hour.
+ */
+function startDonationScheduler() {
+  tick();
+  setInterval(tick, POLL_INTERVAL_MS);
+  console.log('[DonationScheduler] Started — syncing roster and donations every hour.');
+}
+
+module.exports = { startDonationScheduler, ensureCurrentSnapshot, rolloverIfNeeded, syncClanRoster };

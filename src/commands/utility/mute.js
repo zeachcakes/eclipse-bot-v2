@@ -126,6 +126,20 @@ module.exports = {
     const expiresAt = new Date(Date.now() + durationMs);
     const durationLabel = formatDuration(durationMs);
 
+    // Ensure GuildMember records exist for both target and moderator (required by FK)
+    await Promise.all([
+      prisma.guildMember.upsert({
+        where:  { userId_guildId: { userId: target.id, guildId: interaction.guild.id } },
+        update: {},
+        create: { userId: target.id, guildId: interaction.guild.id },
+      }),
+      prisma.guildMember.upsert({
+        where:  { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+        update: {},
+        create: { userId: interaction.user.id, guildId: interaction.guild.id },
+      }),
+    ]);
+
     // Persist mute record and schedule automatic unmute
     const muteRecord = await prisma.mute.create({
       data: {

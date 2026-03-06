@@ -121,6 +121,19 @@ module.exports = {
       });
     }
 
+    await Promise.all([
+      prisma.guildMember.upsert({
+        where:  { userId_guildId: { userId: target.id, guildId: interaction.guild.id } },
+        update: {},
+        create: { userId: target.id, guildId: interaction.guild.id },
+      }),
+      prisma.guildMember.upsert({
+        where:  { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
+        update: {},
+        create: { userId: interaction.user.id, guildId: interaction.guild.id },
+      }),
+    ]);
+
     await prisma.banLog.create({
       data: {
         userId: target.id,

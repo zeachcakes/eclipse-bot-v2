@@ -63,8 +63,8 @@ module.exports = {
     }
 
     // Check if this tag is already linked by someone else
-    const existingByTag = await prisma.playerLink.findFirst({
-      where: { playerTag, NOT: { userId: interaction.user.id } },
+    const existingByTag = await prisma.clanMember.findFirst({
+      where: { playerTag, userId: { not: null }, NOT: { userId: interaction.user.id } },
     });
     if (existingByTag) {
       return interaction.editReply({
@@ -72,11 +72,16 @@ module.exports = {
       });
     }
 
-    // Upsert the link (handles re-linking after an unlink)
-    await prisma.playerLink.upsert({
-      where:  { userId_guildId: { userId: interaction.user.id, guildId: interaction.guild.id } },
-      update: { playerTag },
-      create: { userId: interaction.user.id, guildId: interaction.guild.id, playerTag },
+    // Unlink any other tag this user may have previously linked in this guild
+    await prisma.clanMember.updateMany({
+      where: { userId: interaction.user.id, guildId: interaction.guild.id, NOT: { playerTag } },
+      data:  { userId: null, guildId: null, linkedAt: null },
+    });
+
+    // Link the ClanMember record to this Discord user
+    await prisma.clanMember.update({
+      where: { playerTag },
+      data:  { userId: interaction.user.id, guildId: interaction.guild.id, linkedAt: new Date() },
     });
 
     // Ensure a donation baseline exists for the current season
